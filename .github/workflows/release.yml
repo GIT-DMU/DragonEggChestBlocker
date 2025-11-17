@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch: {}
 
+# Grant workflow permission to create releases
+permissions:
+  contents: write
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -25,16 +29,36 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew --no-daemon build
 
-      - name: Upload artifact
+      - name: Upload artifact (optional)
         uses: actions/upload-artifact@v4
         with:
           name: ed-egg-blocker-jar
           path: build/libs/*.jar
 
-      - name: Create GitHub Release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
-          files: build/libs/*.jar
+      - name: Find built JAR
+        id: find_jar
+        run: |
+          echo "Listing build/libs"
+          ls -la build/libs
+          JAR=$(ls build/libs/*.jar | head -n1)
+          echo "Found JAR: $JAR"
+          echo "jar=$JAR" >> $GITHUB_OUTPUT
 
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.find_jar.outputs.jar }}
+          asset_name: ${{ steps.find_jar.outputs.jar }}
+          asset_content_type: application/java-archive
