@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - 'master'
   workflow_dispatch: {}
 
 # Grant workflow permission to create releases
@@ -13,6 +13,9 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    # Choose auth token: prefer secrets.RELEASE_TOKEN if set, otherwise use the automatic GITHUB_TOKEN
+    env:
+      RELEASE_AUTH: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,24 +44,29 @@ jobs:
           echo "Listing build/libs"
           ls -la build/libs
           JAR=$(ls build/libs/*.jar | head -n1)
+          JAR_NAME=$(basename "$JAR")
           echo "Found JAR: $JAR"
           echo "jar=$JAR" >> $GITHUB_OUTPUT
+          echo "jar_name=$JAR_NAME" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
+          # Use pushed tag if this run was triggered by a tag push, otherwise create a unique release tag per run
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('release-{0}', github.run_number) }}
+          release_name: ${{ startsWith(github.ref, 'refs/tags/') && format('Release {0}', github.ref_name) || format('Release {0} (auto)', github.run_number) }}
+          body: ${{ format('Automated release for commit {0}', github.sha) }}
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ env.RELEASE_AUTH }}
 
       - name: Upload release asset
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ steps.find_jar.outputs.jar }}
-          asset_name: ${{ steps.find_jar.outputs.jar }}
+          asset_name: ${{ steps.find_jar.outputs.jar_name }}
           asset_content_type: application/java-archive
+          repo_token: ${{ env.RELEASE_AUTH }}
