@@ -60,7 +60,7 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ env.RELEASE_AUTH }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Upload release asset
         uses: actions/upload-release-asset@v1
@@ -69,4 +69,5 @@ jobs:
           asset_path: ${{ steps.find_jar.outputs.jar }}
           asset_name: ${{ steps.find_jar.outputs.jar_name }}
           asset_content_type: application/java-archive
-          repo_token: ${{ env.RELEASE_AUTH }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
