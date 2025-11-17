@@ -1,0 +1,4 @@
+name: ED-Egg-Blocker
+version: '1.0-SNAPSHOT'
+main: dev.franki.eDEggBlocker.EDEggBlocker
+api-version: '1.21'
